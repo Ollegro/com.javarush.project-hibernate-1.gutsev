@@ -1,15 +1,16 @@
 package com.game.repository;
 
 import com.game.entity.Player;
-import jakarta.persistence.Query;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
+import org.hibernate.query.NativeQuery;
+import org.hibernate.query.Query;
 import org.springframework.stereotype.Repository;
 
 import javax.annotation.PreDestroy;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -28,6 +29,7 @@ public class PlayerRepositoryDB implements IPlayerRepository {
         properties.put(Environment.PASS, "root");
         properties.put(Environment.HBM2DDL_AUTO, "update");
 
+
         sessionFactory = new Configuration()
                 .addAnnotatedClass(Player.class)
                 .setProperties(properties)
@@ -36,46 +38,59 @@ public class PlayerRepositoryDB implements IPlayerRepository {
 
     @Override
     public List<Player> getAll(int pageNumber, int pageSize) {
-        List<Player> players;
-        try (Session session = sessionFactory.openSession()){
-            session.beginTransaction();
-            String sql = "SELECT * FROM rpg.player";
-            players = session.createNativeQuery(sql, Player.class)
-                    .setFirstResult(pageNumber  * pageSize)
-                    .setMaxResults(pageSize)
-                    .getResultList();
-
+        try (Session session = sessionFactory.openSession()) {
+            NativeQuery<Player> query = session.createNativeQuery("select * from player", Player.class);
+            query.setFirstResult(pageNumber * pageSize);
+            query.setMaxResults(pageSize);
+            return query.list();
         }
-
-
-        return players;
     }
 
     @Override
     public int getAllCount() {
-        int count = 0;
-
-
-        return count;
+        try (Session session = sessionFactory.openSession()) {
+            Query<Long> playerGetAllCount = session.createNamedQuery("Player.getAllCount", Long.class);
+            return Math.toIntExact(playerGetAllCount.uniqueResult());
+        }
     }
 
     @Override
     public Player save(Player player) {
-        return null;
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            session.save(player);
+            transaction.commit();
+            return player;
+        }
+
     }
 
     @Override
     public Player update(Player player) {
-        return null;
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            session.update(player);
+            transaction.commit();
+            return player;
+        }
+
     }
 
     @Override
     public Optional<Player> findById(long id) {
-        return Optional.empty();
+        try (Session session = sessionFactory.openSession()) {
+            Player player = session.find(Player.class, id);
+            return Optional.of(player);
+        }
     }
 
     @Override
     public void delete(Player player) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            session.remove(player);
+            transaction.commit();
+        }
 
     }
 
